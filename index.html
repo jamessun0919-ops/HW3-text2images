@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 文字生成圖片</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            min-height: 100vh;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 40px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.4);
+        }
+        h1 {
+            text-align: center;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #a8edea, #fed6e3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            text-align: center;
+            color: rgba(255,255,255,0.5);
+            font-size: 14px;
+            margin-bottom: 32px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.06);
+            color: #fff;
+            font-size: 15px;
+            outline: none;
+            transition: 0.2s;
+        }
+        input:focus {
+            border-color: #a8edea;
+            box-shadow: 0 0 0 3px rgba(168,237,234,0.15);
+        }
+        .style-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+        .style-card {
+            padding: 14px 8px;
+            border-radius: 12px;
+            border: 2px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.04);
+            text-align: center;
+            cursor: pointer;
+            transition: 0.25s;
+            font-size: 13px;
+            font-weight: 500;
+            user-select: none;
+        }
+        .style-card:hover {
+            border-color: rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.08);
+        }
+        .style-card.active {
+            border-color: #a8edea;
+            background: rgba(168,237,234,0.12);
+            box-shadow: 0 0 20px rgba(168,237,234,0.1);
+        }
+        .style-card .icon { font-size: 28px; display: block; margin-bottom: 6px; }
+        .btn-generate {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            color: #1a1a2e;
+            background: linear-gradient(135deg, #a8edea, #fed6e3);
+            cursor: pointer;
+            transition: 0.25s;
+            margin-top: 4px;
+        }
+        .btn-generate:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(168,237,234,0.3); }
+        .btn-generate:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .result-area {
+            margin-top: 28px;
+            border-radius: 16px;
+            overflow: hidden;
+            min-height: 300px;
+            background: rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .result-area img {
+            width: 100%;
+            display: block;
+            border-radius: 16px;
+        }
+        .loading {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            color: rgba(255,255,255,0.5);
+        }
+        .loading.show { display: flex; }
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-top-color: #a8edea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .error-msg {
+            display: none;
+            padding: 12px 16px;
+            background: rgba(255,80,80,0.15);
+            border: 1px solid rgba(255,80,80,0.3);
+            border-radius: 10px;
+            color: #ff6b6b;
+            font-size: 13px;
+            margin-top: 16px;
+        }
+        .error-msg.show { display: block; }
+        .prompt-preview {
+            margin-top: 12px;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.04);
+            border-radius: 8px;
+            font-size: 12px;
+            color: rgba(255,255,255,0.4);
+            display: none;
+            word-break: break-all;
+        }
+        .prompt-preview.show { display: block; }
+        .hf-credit {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 12px;
+            color: rgba(255,255,255,0.25);
+        }
+        .hf-credit a { color: rgba(255,255,255,0.4); }
+        @media (max-width: 600px) {
+            .container { padding: 24px 16px; }
+            .style-grid { grid-template-columns: repeat(2, 1fr); }
+            h1 { font-size: 22px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AI 文字生成圖片</h1>
+        <p class="subtitle">輸入你的想像，讓 AI 為你繪製</p>
+
+        <div class="form-group">
+            <label>Hugging Face API 金鑰</label>
+            <input type="password" id="apiKey" placeholder="hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
+        </div>
+
+        <div class="form-group">
+            <label>描述你想生成的圖片</label>
+            <input type="text" id="prompt" placeholder="例如：一隻貓咪在火星上散步..." />
+        </div>
+
+        <label>選擇風格</label>
+        <div class="style-grid" id="styleGrid">
+            <div class="style-card active" data-style="comic" data-prefix="comic style, cartoon, cel-shaded, bold outlines, vibrant colors, ">
+                <span class="icon">&#x1F3AD;</span> 漫畫
+            </div>
+            <div class="style-card" data-style="realistic" data-prefix="photorealistic, highly detailed, 8K, natural lighting, ">
+                <span class="icon">&#x1F4F7;</span> 寫實
+            </div>
+            <div class="style-card" data-style="cyberpunk" data-prefix="cyberpunk style, neon lights, dark atmosphere, futuristic city, ">
+                <span class="icon">&#x1F4A1;</span> 賽博龐克
+            </div>
+            <div class="style-card" data-style="sketch" data-prefix="pencil sketch, black and white, hand-drawn, rough lines, ">
+                <span class="icon">&#x270F;&#xFE0F;</span> 素描
+            </div>
+        </div>
+
+        <button class="btn-generate" id="generateBtn">生成圖片</button>
+
+        <div class="error-msg" id="errorMsg"></div>
+        <div class="prompt-preview" id="promptPreview"></div>
+
+        <div class="result-area" id="resultArea">
+            <div class="loading show" id="loading">
+                <div class="spinner"></div>
+                <span>正在生成中，請稍候...</span>
+            </div>
+        </div>
+
+        <div class="hf-credit">
+            Powered by <a href="https://huggingface.co/" target="_blank">Hugging Face</a> Inference API
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api/generate';
+
+        const apiKeyInput = document.getElementById('apiKey');
+        const promptInput = document.getElementById('prompt');
+        const styleGrid = document.getElementById('styleGrid');
+        const generateBtn = document.getElementById('generateBtn');
+        const resultArea = document.getElementById('resultArea');
+        const loading = document.getElementById('loading');
+        const errorMsg = document.getElementById('errorMsg');
+        const promptPreview = document.getElementById('promptPreview');
+
+        let selectedStyle = 'comic';
+        let selectedPrefix = 'comic style, cartoon, cel-shaded, bold outlines, vibrant colors, ';
+
+        // Style selection
+        document.querySelectorAll('.style-card').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.style-card').forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                selectedStyle = card.dataset.style;
+                selectedPrefix = card.dataset.prefix;
+            });
+        });
+
+        generateBtn.addEventListener('click', generateImage);
+
+        promptInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') generateImage();
+        });
+
+        async function generateImage() {
+            const apiKey = apiKeyInput.value.trim();
+            const userPrompt = promptInput.value.trim();
+
+            errorMsg.classList.remove('show');
+            promptPreview.classList.remove('show');
+
+            if (!apiKey) { showError('請輸入 Hugging Face API 金鑰'); return; }
+            if (!userPrompt) { showError('請輸入圖片描述'); return; }
+
+            const fullPrompt = selectedPrefix + userPrompt;
+
+            // Show prompt preview
+            promptPreview.textContent = '實際提示詞：' + fullPrompt;
+            promptPreview.classList.add('show');
+
+            // Clear previous image
+            const existingImg = resultArea.querySelector('img');
+            if (existingImg) existingImg.remove();
+
+            loading.classList.add('show');
+            generateBtn.disabled = true;
+            generateBtn.textContent = '生成中...';
+
+            try {
+                const bodyBlob = new Blob(
+                    [JSON.stringify({ inputs: fullPrompt })],
+                    { type: 'application/json' },
+                );
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + apiKey },
+                    body: bodyBlob,
+                });
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    let msg = 'API 請求失敗';
+                    try {
+                        const errJson = JSON.parse(errText);
+                        msg = errJson.error || msg;
+                    } catch { msg = errText || `HTTP ${response.status}`; }
+                    throw new Error(msg);
+                }
+
+                const blob = await response.blob();
+                const imgUrl = URL.createObjectURL(blob);
+
+                const img = document.createElement('img');
+                img.src = imgUrl;
+                img.alt = fullPrompt;
+                resultArea.appendChild(img);
+
+            } catch (err) {
+                showError('生成失敗：' + err.message);
+            } finally {
+                loading.classList.remove('show');
+                generateBtn.disabled = false;
+                generateBtn.textContent = '生成圖片';
+            }
+        }
+
+        function showError(msg) {
+            errorMsg.textContent = msg;
+            errorMsg.classList.add('show');
+        }
+    </script>
+</body>
+</html>
